@@ -14,7 +14,7 @@ return [
 
     // IA — Groq (grátis): crie a chave em https://console.groq.com → API Keys
     'ai_key'    => 'gsk_...',
-    // 'ai_model' => 'llama-3.1-8b-instant',   // mais rápido e com limite diário maior
+    // 'ai_model' => 'openai/gpt-oss-20b',   // mais rápido e com limite diário maior
 
     // Outros serviços no mesmo formato (troque as três linhas):
     //   Google Gemini:  'ai_url' => 'https://generativelanguage.googleapis.com/v1beta/openai', 'ai_model' => 'gemini-flash-latest'

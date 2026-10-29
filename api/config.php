@@ -45,7 +45,7 @@ $config = [
     // IA (qualquer serviço no formato da API da OpenAI). Padrão: Groq, grátis — chave em https://console.groq.com
     'ai_url'      => $env('AI_URL', 'https://api.groq.com/openai/v1'),
     'ai_key'      => $env('AI_KEY', ''),
-    'ai_model'    => $env('AI_MODEL', 'llama-3.3-70b-versatile'),
+    'ai_model'    => $env('AI_MODEL', 'openai/gpt-oss-120b'),
 ];
 
 $local = __DIR__ . '/config.local.php';

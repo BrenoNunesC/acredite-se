@@ -19,11 +19,10 @@ const CAP_OPTIONS = [
     'mustache'      => ['none', 'simples', 'fino', 'curvado', 'guidao', 'grosso', 'barba', 'cavanhaque'],
     'mustacheColor' => ['#111827', '#78350F', '#F59E0B', '#9CA3AF', '#DC2626', '#7C3AED', '#3B82F6'],
     'halo'          => ['#FFFFFF', '#FBBF24', '#67E8F9', 'nenhum'],
-    'personality'   => ['off', 'on'],
 ];
 const CAP_DEFAULT = [
     'skin' => 'classic', 'glasses' => 'none', 'mouth' => 'padrao', 'hair' => 'none', 'hairColor' => '#5B3A1A',
-    'hat' => 'none', 'mustache' => 'none', 'mustacheColor' => '#111827', 'halo' => '#FFFFFF', 'personality' => 'off',
+    'hat' => 'none', 'mustache' => 'none', 'mustacheColor' => '#111827', 'halo' => '#FFFFFF',
 ];
 
 /** Só fica o que está na lista; o resto volta ao padrão. */

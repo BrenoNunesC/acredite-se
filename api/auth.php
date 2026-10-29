@@ -41,8 +41,10 @@ case 'register':
     $st->execute([$email]);
     if ($st->fetch()) fail('Este e-mail já está cadastrado.', 409);
 
-    db()->prepare('INSERT INTO users (name, email, password_hash, created_at) VALUES (?, ?, ?, ?)')
-        ->execute([$name, $email, password_hash($pass, PASSWORD_DEFAULT), now()]);
+    // Sistema sem administrador (instalação nova): a primeira conta vira administradora
+    $isAdmin = (int)db()->query('SELECT COUNT(*) FROM users WHERE is_admin = 1')->fetchColumn() === 0 ? 1 : 0;
+    db()->prepare('INSERT INTO users (name, email, password_hash, created_at, is_admin) VALUES (?, ?, ?, ?, ?)')
+        ->execute([$name, $email, password_hash($pass, PASSWORD_DEFAULT), now(), $isAdmin]);
     respond(['ok' => true], 201);
 
 case 'login':

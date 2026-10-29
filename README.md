@@ -83,8 +83,10 @@ A IA gera e edita infográficos, responde perguntas sobre os dados, escreve o re
 **Não coloque a chave em nenhum arquivo que vá para o GitHub.** Ela funciona como uma senha. Se ela vazar, apague-a no console do Groq e crie outra.
 
 Modelos sugeridos (`ai_model`):
-- `llama-3.3-70b-versatile` (padrão): o melhor em português.
-- `llama-3.1-8b-instant`: mais rápido e com limite diário maior, mas acerta menos.
+- `openai/gpt-oss-120b` (padrão): o mais inteligente, bom em português e em JSON.
+- `openai/gpt-oss-20b`: mais rápido e com limite maior, mas acerta menos.
+
+Os modelos disponíveis mudam com o tempo. A lista atual fica em console.groq.com → Docs → Models. Se aparecer "Modelo de IA não encontrado", troque o `ai_model`.
 
 O plano grátis tem limite por minuto e por dia (veja em console.groq.com → Settings → Limits). Se o limite for atingido, o sistema avisa e o resto continua funcionando. Para trocar de serviço, mude `ai_url`, `ai_key` e `ai_model`. Funcionam Google Gemini, OpenRouter, GitHub Models e Ollama local, e há exemplos em `api/config.local.example.php`.
 
@@ -200,9 +202,9 @@ Os botões de desfazer/refazer, animação e exportação do editor de infográf
 
 ## Cápsula: assistente virtual (IA)
 
-A **Cápsula** fica no canto inferior direito, em todas as telas, inclusive nas apresentações. Clique nela para conversar: ela explica qualquer parte do sistema e, se você pedir (por exemplo, "me leva para o CRM"), abre a tela com um botão. Ela usa a mesma IA dos infográficos (veja [Configurar a IA](#configurar-a-ia-groq-grátis)). Se a IA estiver indisponível, o painel avisa "IA indisponível" e o restante do sistema funciona normalmente.
+A **Cápsula** fica no canto inferior direito, em todas as telas, inclusive nas apresentações. Clique nela para conversar: ela explica qualquer parte do sistema e, quando você cita uma página (por exemplo, "me leva para o CRM" ou "onde ficam as equipes?"), caminha até o botão dessa página na tela em que você está e o destaca. Ela usa a mesma IA dos infográficos (veja [Configurar a IA](#configurar-a-ia-groq-grátis)). Se a IA estiver indisponível, o painel avisa "IA indisponível" e o restante do sistema funciona normalmente.
 
-A resposta também aparece **na tela**: a Cápsula caminha até o botão, bloco ou campo que responde a dúvida, põe um anel de destaque em volta dele e mostra a resposta num balão. O balão tem **Entendi** (fecha) e, quando faz sentido, **Abrir ...** (leva à tela). Ela também aparece no painel de conversa.
+A resposta também aparece **na tela**: a Cápsula caminha até o botão, bloco ou campo que responde a dúvida, põe um anel de destaque em volta dele e mostra a resposta num balão. No Início, ela aponta o cartão da página; nas telas de análise, o item do menu lateral; dentro de um módulo, aponta o **Voltar** e explica o caminho ("Clique em Voltar para ir ao Início e depois em …"). Se a conversa estiver na frente do botão, ela se fecha. Clicar no botão destacado abre a página e encerra o destaque; **Entendi** ou Esc também fecham o balão. A resposta também fica no painel de conversa.
 
 A Cápsula também **faz coisas na tela**, quando você pede: abrir uma planilha do CRM, criar uma planilha em branco, filtrar atrasadas, em aberto ou concluídas, baixar o Excel, gerar infográfico ou apresentação da planilha e apresentar a análise aberta. Ela tem uma página própria, **Minha Cápsula**, que abre pela tela Início, pelo botão **Aparência** da Cápsula ou por **Configurações → Cápsula**. A página mostra uma prévia grande e as opções em abas (Corpo, Rosto, Cabelo, Chapéu, Bigode e Destaque), com miniaturas mostrando o resultado de cada opção. A escolha é salva **na sua conta**, então vale em qualquer computador em que você entrar. Opções:
 - **Cor do corpo:** 9 cores.
@@ -214,8 +216,6 @@ A Cápsula também **faz coisas na tela**, quando você pede: abrir uma planilha
 - **Destaque dos acessórios:** contorno branco, dourado ou neon em volta de cabelo, chapéu e bigode, para eles não se perderem no contorno do personagem. Pode ser desligado.
 - **Sortear** cria uma combinação aleatória; **Restaurar padrão** volta ao visual original.
 
-**Personalidade:** um switch (Ligada/Desligada) na página Minha Cápsula. Cada cor tem um perfil, e com o switch ligado o assistente responde com o jeito dela (o campo `reply`). Os perfis ficam em `PERSONALIDADES` (`api/ai.php`) e `CAPSULE_PERSONAS` (`index.html`), que precisam ficar iguais. A cor vem da conta da pessoa, e o servidor lê a escolha direto do banco. Correspondência: Violeta (Amor), Verde (Força de Vontade), Laranja (Avareza), Vermelho (Ira), Índigo (Compaixão), Amarelo (Medo), Branco (Vida), Azul (Esperança) e Preto (Morte). A cor Coral foi trocada pela Branca para cobrir as nove cores.
-
 **Sobreposições:** quando duas escolhas se encontram, o desenho resolve sozinho e a página mostra um aviso. Com chapéu que cobre a cabeça (cartola, boné, capacete, gorro, palha), o topo do cabelo fica escondido e só as laterais aparecem. Os bigodes ficam sempre abaixo das lentes (a partir da linha 17 da grade), e a barba deixa a região da boca livre. O destaque nunca pinta por cima do rosto.
 
 As opções válidas ficam em `api/capsule.php` (guardadas na conta) e no `index.html` (CAPSULE_OPTIONS). Se você acrescentar uma opção, atualize as duas listas. A escolha vale em todas as telas e fica salva neste navegador. O desenho usa uma grade mais fina (16×32), com brilho nos olhos, e os chapéus, cabelos e bigodes são desenhados linha a linha em `index.html` (ver `CAPSULE_ART`), o que facilita criar novas opções.
@@ -223,6 +223,8 @@ As opções válidas ficam em `api/capsule.php` (guardadas na conta) e no `index
 Ela só executa comandos de uma lista fixa. Excluir uma planilha ou uma coluna sempre pede a sua confirmação antes.
 
 Cada pessoa pode fazer até 60 perguntas por hora. A Cápsula responde só sobre o sistema.
+
+**O que a Cápsula sabe:** tudo o que ela explica vem de `api/conhecimento.md`, uma base com uma seção por assunto (conta, análise, painel, exportação, infográfico, CRM, biblioteca, equipes, configurações, administração…). A cada pergunta, o servidor escolhe as 3 seções mais ligadas à pergunta e manda só elas para a IA, porque o plano grátis tem limite de tokens por minuto. **Quando mudar ou criar uma tela, atualize a seção correspondente** com os nomes exatos dos botões e, na linha `palavras:`, os termos que as pessoas usariam para perguntar. Se algo não estiver na base, a Cápsula diz que não sabe em vez de inventar.
 
 ## Registro de erros
 
@@ -264,6 +266,7 @@ api/
   teamlib.php         → funções comuns de equipe (e-mails, metas, relatório)
   admin.php           → administração do sistema (usuários, equipes, configurações, registro)
   ai.php              → IA: infográficos, perguntas aos dados, resumo e Cápsula (Groq ou outro serviço)
+  conhecimento.md     → o que a Cápsula sabe sobre o sistema (uma seção por assunto)
   schema.php          → atualiza o banco automaticamente
   cron.php            → envia o relatório mensal e o lembrete diário do CRM (agendar na hospedagem, 1 vez por dia)
 storage/              → PNGs antigos da biblioteca (protegida)

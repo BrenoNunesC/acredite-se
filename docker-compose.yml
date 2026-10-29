@@ -14,7 +14,7 @@ services:
       ACREDITE_DEBUG: ${DEBUG:-true}
       ACREDITE_AI_URL: ${AI_URL:-https://api.groq.com/openai/v1}
       ACREDITE_AI_KEY: ${AI_KEY:-}
-      ACREDITE_AI_MODEL: ${AI_MODEL:-llama-3.3-70b-versatile}
+      ACREDITE_AI_MODEL: ${AI_MODEL:-openai/gpt-oss-120b}
     volumes:
       - storage:/var/www/html/storage
     depends_on:

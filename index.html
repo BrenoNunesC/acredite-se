@@ -146,7 +146,7 @@
         <div class="login-sub">Informe seu e-mail para localizar sua conta</div>
         <div class="forgot-info">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round" style="vertical-align:middle;margin-right:5px"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/></svg>
-          Este sistema não envia e-mails. Sua conta será localizada localmente e você poderá redefinir a senha diretamente.
+          Vamos enviar um código de 6 dígitos para o seu e-mail. Com ele, você cria uma senha nova.
         </div>
         <label class="login-label" for="forgot-email">E-mail cadastrado</label>
         <input class="login-input" id="forgot-email" type="email" placeholder="seu@email.com" autocomplete="email" autocapitalize="none">
@@ -909,7 +909,6 @@ Configurações</button>
     <aside class="avatar-stage">
       <div class="avatar-big" id="avatar-big"></div>
       <div class="avatar-notes" id="avatar-notes"></div>
-      <div class="avatar-persona" id="avatar-persona"></div>
       <div class="avatar-actions">
         <button class="exp-cancel" id="avatar-random" type="button">Sortear</button>
         <button class="exp-cancel" id="avatar-reset" type="button">Restaurar padrão</button>
@@ -930,7 +929,6 @@ Configurações</button>
   <div class="assist-bubble" id="assist-bubble" role="status">
     <p id="assist-bubble-text"></p>
     <div class="assist-bubble-btns">
-      <button class="assist-go" id="assist-bubble-go" type="button" hidden></button>
       <button class="assist-bubble-ok" id="assist-bubble-ok" type="button">Entendi</button>
     </div>
   </div>
@@ -4493,21 +4491,8 @@ const CAPSULE_HAT={none:'Sem chapéu',cartola:'Cartola',bone:'Boné',coroa:'Coro
 const CAPSULE_MUSTACHE={none:'Sem bigode',simples:'Simples',fino:'Fino',curvado:'Curvado',guidao:'Guidão',grosso:'Grosso',barba:'Barba',cavanhaque:'Cavanhaque'};
 const CAPSULE_MUSTACHE_COLORS={'#111827':'Preto','#78350F':'Castanho','#F59E0B':'Dourado','#9CA3AF':'Grisalho','#DC2626':'Vermelho','#7C3AED':'Roxo','#3B82F6':'Azul'};
 const CAPSULE_HALO={'#FFFFFF':'Branco','#FBBF24':'Dourado','#67E8F9':'Neon',nenhum:'Sem destaque'};
-const CAPSULE_PERSONALITY={off:'Desligada',on:'Ligada'};
-const CAPSULE_DEFAULT={skin:'classic',glasses:'none',mouth:'padrao',hair:'none',hairColor:'#5B3A1A',hat:'none',mustache:'none',mustacheColor:'#111827',halo:'#FFFFFF',personality:'off'};
-const CAPSULE_OPTIONS={skin:CAPSULE_SKINS,glasses:CAPSULE_GLASSES,mouth:CAPSULE_MOUTH,hair:CAPSULE_HAIR,hairColor:CAPSULE_HAIR_COLORS,hat:CAPSULE_HAT,mustache:CAPSULE_MUSTACHE,mustacheColor:CAPSULE_MUSTACHE_COLORS,halo:CAPSULE_HALO,personality:CAPSULE_PERSONALITY};
-// Personalidade de cada cor (espelha PERSONALIDADES em api/ai.php, que é quem usa de verdade no assistente)
-const CAPSULE_PERSONAS={
-  classic:{nome:'Violeta',emocao:'Amor',perfil:'Passional, obsessivo e superprotetor.',fala:'Intensa, dramática e impositiva.',bordao:'Estou te protegendo de si mesmo.'},
-  menta:{nome:'Verde',emocao:'Força de Vontade',perfil:'Obstinado, pragmático e disciplinado.',fala:'Firme, lógica e sem rodeios.',bordao:'Foco no plano.'},
-  sol:{nome:'Laranja',emocao:'Avareza',perfil:'Paranoico, ciumento e calculista.',fala:'Rápida, defensiva e sibilante.',bordao:'Tire as mãos, é meu.'},
-  rosa:{nome:'Vermelho',emocao:'Ira',perfil:'Agressivo, impaciente e reativo.',fala:'Seca, curta e cortante.',bordao:'Cale a boca e ande.'},
-  noite:{nome:'Índigo',emocao:'Compaixão',perfil:'Altruísta, humilde e protetor.',fala:'Suave, ponderada e impessoal.',bordao:'O seu fardo pesa em mim.'},
-  lima:{nome:'Amarelo',emocao:'Medo',perfil:'Tirânico, sádico e intimidador.',fala:'Pausada, fria e teatral.',bordao:'Sinta o tremor na sua respiração.'},
-  branco:{nome:'Branco',emocao:'Vida',perfil:'Neutro, amplo e equilibrado.',fala:'Clara, serena e definitiva.',bordao:'Restaure o ciclo.'},
-  ceu:{nome:'Azul',emocao:'Esperança',perfil:'Calmo, paciente e resiliente.',fala:'Acolhedora, constante e sem ironia.',bordao:'Ainda não acabou.'},
-  grafite:{nome:'Preto',emocao:'Morte',perfil:'Niilista, frio e implacável.',fala:'Oca, monótona e mecânica.',bordao:'O esforço é inútil.'},
-};
+const CAPSULE_DEFAULT={skin:'classic',glasses:'none',mouth:'padrao',hair:'none',hairColor:'#5B3A1A',hat:'none',mustache:'none',mustacheColor:'#111827',halo:'#FFFFFF'};
+const CAPSULE_OPTIONS={skin:CAPSULE_SKINS,glasses:CAPSULE_GLASSES,mouth:CAPSULE_MOUTH,hair:CAPSULE_HAIR,hairColor:CAPSULE_HAIR_COLORS,hat:CAPSULE_HAT,mustache:CAPSULE_MUSTACHE,mustacheColor:CAPSULE_MUSTACHE_COLORS,halo:CAPSULE_HALO};
 // Grupos (rótulo e, quando é cor, a bolinha de cada opção)
 const CAPSULE_GROUPS=[
   {key:'skin',label:'Cor do corpo',swatch:k=>CAPSULE_SKINS[k].p},
@@ -4718,25 +4703,7 @@ function avatarRender(){
     }).join('')}</div>`;
   }).join('');
   document.getElementById('avatar-notes').innerHTML=avatarNotes(cfg).map(t=>`<p>${esc(t)}</p>`).join('');
-  document.getElementById('avatar-persona').innerHTML=personaHtml(cfg);
 }
-// Switch da personalidade: o perfil vem da cor da Cápsula
-function personaHtml(cfg){
-  const p=CAPSULE_PERSONAS[cfg.skin];
-  const on=cfg.personality==='on';
-  const desc=on?`<p class="persona-desc"><b>Perfil:</b> ${p.perfil}<br><b>Fala:</b> ${p.fala}<br><b>Bordão:</b> “${p.bordao}”</p>`:'<p class="persona-desc">Ligue para a Cápsula falar com o jeito da cor escolhida.</p>';
-  return `<div class="persona-head"><span class="persona-title">Personalidade<b>${p.nome} · ${p.emocao}</b></span>
-    <button type="button" class="persona-switch${on?' on':''}" id="persona-switch" role="switch" aria-checked="${on}" aria-label="Personalidade da Cápsula">
-      <span class="persona-knob"></span><span class="persona-state">${CAPSULE_PERSONALITY[on?'on':'off']}</span>
-    </button></div>${desc}`;
-}
-document.getElementById('avatar-persona').addEventListener('click',e=>{
-  if(!e.target.closest('#persona-switch'))return;
-  const cfg=capsuleCfg();
-  cfg.personality=cfg.personality==='on'?'off':'on';
-  capsuleChanged(cfg);
-  avatarRender();
-});
 let avatarTab='corpo';
 function avatarOpen(){
   homeOpening=true;
@@ -4788,19 +4755,41 @@ function assistScreen(){
   if(assistEl('upload-screen').style.display==='flex')return 'Nova análise (modelos)';
   return 'desconhecida';
 }
-function assistLog(role,text,action){
+function assistLog(role,text){
   const log=assistEl('assist-log');
   const msg=document.createElement('div');
   msg.className='assist-msg '+role;
   msg.textContent=text;
   log.appendChild(msg);
-  if(action&&ASSIST_TARGETS_LABEL[action]){
-    const go=document.createElement('button');
-    go.type='button';go.className='assist-go';go.dataset.assistGo=action;
-    go.textContent=`Abrir ${ASSIST_TARGETS_LABEL[action]} →`;
-    log.appendChild(go);
-  }
   log.scrollTop=log.scrollHeight;
+}
+// Telas que já são a página pedida (aí não há botão para apontar)
+const ASSIST_PAGE_ID={crm:'crm-page',teams:'teams-page',admin:'admin-page',ig:'ig-page',library:'library-screen',settings:'settings-screen',models:'upload-screen'};
+// Botão da tela atual que leva à página pedida: card do Início, menu lateral ou, dentro de um módulo, o Voltar
+function assistNav(action){
+  const none={el:null,hint:''};
+  if(!action||!ASSIST_TARGETS_LABEL[action])return none;
+  const vis=el=>el&&el.getBoundingClientRect().width>0?el:null;
+  const home=assistEl('home-page');
+  const homeSel=action==='tour'?'#home-tour-btn':`[data-home="${action}"]`;
+  const homeName=(home.querySelector(`${homeSel} strong`)||home.querySelector(homeSel)||{}).textContent||ASSIST_TARGETS_LABEL[action];
+  const here=vis(assistEl(ASSIST_PAGE_ID[action]||''));
+  const mod=[...document.querySelectorAll('.page-overlay:not([hidden])')].filter(p=>p!==home).pop();
+  if(mod){
+    if(mod.id===ASSIST_PAGE_ID[action])return none;
+    const back=vis(mod.querySelector('[data-close-page]'));
+    if(!back)return none;
+    return {el:back,hint:action==='home'?'Clique em Voltar para ir ao Início.':`Clique em Voltar para ir ao Início e depois em “${homeName.trim()}”.`};
+  }
+  if(!home.hidden){
+    return action==='home'?none:{el:vis(home.querySelector(`.home-body ${homeSel}`)),hint:''};
+  }
+  if(here)return none;
+  if(action==='tour'){
+    const el=vis(assistEl('sidebar-home-btn'));
+    return el?{el,hint:'Clique em Início e depois em “Ver tutorial”.'}:none;
+  }
+  return {el:vis(assistEl(`sidebar-${action}-btn`)),hint:''};
 }
 // Onde fica cada elemento que a Cápsula pode apontar (só conta se estiver visível na tela)
 const ASSIST_ANCHOR_SEL={'home-create':'.home-create-grid','home-explore':'.home-explore-grid','home-recent':'#home-recent','home-tour':'#home-tour-btn','home-pill':'#home-pill','brand':'[data-brand-home]','sidebar-library':'#sidebar-library-btn','model-grid':'#model-grid','file-drop':'#drop-zone','present-btn':'#present-btn','speed':'#speed-bar','ig-ai':'#ig-ai-prompt','ig-play':'#ig-play-btn','ig-mascot':'#ig-mascot-btn','crm-form':'#crm-blank-form','assist':'#assist-cap'};
@@ -4823,21 +4812,26 @@ function assistPlace(){
   const walker=assistEl('assist-walker');
   walker.style.left=px+'px';walker.style.top=py+'px';
   const bubble=assistEl('assist-bubble');
-  bubble.classList.toggle('flip',px+ASSIST_PILL_W+300>W);
+  // O balão fica do lado oposto ao elemento destacado, para não cobrir o botão
+  const roomLeft=px-300>=8,roomRight=px+ASSIST_PILL_W+300<=W;
+  bubble.classList.toggle('flip',assistPointEl&&px<r.left?roomLeft||!roomRight:!roomRight);
   // Balão sobe se não couber embaixo da Cápsula
   bubble.style.top=Math.min(-8,H-8-(py+bubble.offsetHeight))+'px';
 }
 // Mostra a resposta na tela: a Cápsula caminha até o elemento, destaca e fala no balão
-function assistShowOnScreen(text,target,action){
-  assistPointEl=assistFindTarget(target);
+function assistShowOnScreen(text,target,navEl){
+  // Página pedida: aponta o botão real da tela; senão, o elemento que a IA escolheu
+  assistPointEl=navEl||assistFindTarget(target);
   assistEl('assist-bubble-text').textContent=text;
-  const go=assistEl('assist-bubble-go');
-  go.hidden=!action;
-  if(action){go.textContent=`Abrir ${ASSIST_TARGETS_LABEL[action]} →`;go.dataset.assistGo=action;}
   const walker=assistEl('assist-walker');
   walker.hidden=false;
   walker.classList.add('moving');
-  if(assistPointEl)assistPointEl.scrollIntoView({block:'center'});
+  if(assistPointEl){
+    assistPointEl.scrollIntoView({block:'center'});
+    // A conversa fecha se estiver na frente do botão destacado
+    const p=assistEl('assist-panel').getBoundingClientRect(),r=assistPointEl.getBoundingClientRect();
+    if(!assistEl('assist-panel').hidden&&r.right>p.left&&r.left<p.right&&r.bottom>p.top&&r.top<p.bottom)assistTogglePanel(false);
+  }
   requestAnimationFrame(()=>{
     assistPlace();
     setTimeout(()=>walker.classList.remove('moving'),650);
@@ -4852,23 +4846,14 @@ addEventListener('resize',()=>{if(!assistEl('assist-walker').hidden)assistPlace(
 addEventListener('scroll',()=>{if(!assistEl('assist-walker').hidden)assistPlace();},true);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!assistEl('assist-walker').hidden)assistHideOnScreen();});
 assistEl('assist-bubble-ok').addEventListener('click',assistHideOnScreen);
-assistEl('assist-bubble-go').addEventListener('click',e=>assistGo(e.currentTarget.dataset.assistGo));
+// Clicar no botão destacado leva à página e encerra o destaque
+document.addEventListener('click',e=>{if(assistPointEl&&assistPointEl.contains(e.target))assistHideOnScreen();},true);
 
 function assistCap(state){
   const cap=assistEl('assist-cap');
   cap.classList.remove('thinking','answer');
   if(state)cap.classList.add(state);
   if(state==='answer')setTimeout(()=>cap.classList.remove('answer'),700);
-}
-// Leva à tela pedida, fechando o que estiver aberto (a Cápsula é a única que faz esse atalho)
-function assistGo(action){
-  assistTogglePanel(false);
-  assistHideOnScreen();
-  if(action==='tour'){startTour();return;}
-  homeOpening=true;
-  document.querySelectorAll('.page-overlay:not([hidden])').forEach(p=>closePage(p));
-  homeOpening=false;
-  if(action==='home')openHome();else HOME_ACTIONS[action]();
 }
 // Acha a planilha pelo nome (exato, depois parcial). Sem nome, não acha nada.
 function assistFindSheet(list,arg){
@@ -4966,14 +4951,17 @@ async function assistSend(text){
     try{sheets=(await api('crm.php?action=list')).sheets.map(s=>s.name);}catch(e){}
     const r=await api('ai.php?action=assist',{messages:assistHist.slice(-8),screen:assistScreen(),sheets});
     assistHist.push({role:'assistant',content:r.reply});
-    assistLog('bot',r.reply,r.action);
+    let note=null;
     if(r.command){
-      let note=null;
       try{note=await assistRunCommand(r.command,r.arg||'');}
       catch(err){note=err.message||'Não consegui executar essa ação.';}
-      if(note)assistLog('bot err',note);
     }
-    assistShowOnScreen(r.reply,r.target,r.action);
+    // Depois do comando (que pode ter trocado de tela), acha o botão da tela atual para a página pedida
+    const nav=assistNav(r.action);
+    const reply=nav.hint?`${r.reply}\n\n${nav.hint}`:r.reply;
+    assistLog('bot',reply);
+    if(note)assistLog('bot err',note);
+    assistShowOnScreen(reply,r.target,nav.el);
     assistCap('answer');
   }catch(e){
     assistHist.pop();
@@ -5012,10 +5000,6 @@ assistEl('assist-form').addEventListener('submit',e=>{
   const input=assistEl('assist-input');
   const text=input.value;input.value='';
   assistSend(text);
-});
-assistEl('assist-log').addEventListener('click',e=>{
-  const b=e.target.closest('[data-assist-go]');
-  if(b)assistGo(b.dataset.assistGo);
 });
 assistEl('assist-panel').addEventListener('keydown',e=>{
   if(e.key==='Escape'){e.stopPropagation();assistTogglePanel(false);assistEl('assist-cap').focus();}

@@ -18,7 +18,7 @@ $uid  = (int)$user['id'];
 
 $AI_URL   = rtrim((string)($CONFIG['ai_url'] ?? 'https://api.groq.com/openai/v1'), '/');
 $AI_KEY   = (string)($CONFIG['ai_key'] ?? '');
-$AI_MODEL = (string)($CONFIG['ai_model'] ?? 'llama-3.3-70b-versatile');
+$AI_MODEL = (string)($CONFIG['ai_model'] ?? 'openai/gpt-oss-120b');
 
 const AI_KPIS = ['type' => 'array', 'items' => [
     'type' => 'object',
@@ -137,7 +137,7 @@ function aiPrompt(string $p): string {
 }
 
 /** Chamada HTTP JSON ao serviço de IA (sem depender da extensão curl). */
-function aiHttp(string $path, ?array $payload, int $timeout): array {
+function aiHttp(string $path, ?array $payload, int $timeout, bool $retry = true): array {
     global $AI_URL, $AI_KEY;
     $headers = "Content-Type: application/json\r\n";
     if ($AI_KEY !== '') $headers .= "Authorization: Bearer {$AI_KEY}\r\n";
@@ -151,11 +151,18 @@ function aiHttp(string $path, ?array $payload, int $timeout): array {
     $raw = @file_get_contents($AI_URL . $path, false, $ctx);
     if ($raw === false) fail('Não foi possível falar com a IA. Confira a internet e o endereço ai_url na configuração.', 503);
     $status = 0;
+    $wait = 0.0;
     foreach ($http_response_header ?? [] as $h) {
         if (preg_match('#^HTTP/\S+\s+(\d{3})#', $h, $m)) $status = (int)$m[1];
+        if (preg_match('#^retry-after:\s*([\d.]+)#i', $h, $m)) $wait = (float)$m[1];
     }
     $json = json_decode($raw, true);
     if ($status === 401 || $status === 403) fail('A chave da IA está faltando ou é inválida. Confira ai_key na configuração.', 503);
+    // Limite por minuto do plano grátis: se a espera for curta, espera e tenta mais uma vez
+    if ($status === 429 && $retry && $wait > 0 && $wait <= 20) {
+        usleep((int)(($wait + 0.5) * 1e6));
+        return aiHttp($path, $payload, $timeout, false);
+    }
     if ($status === 429) fail('O limite grátis da IA foi atingido. Tente de novo em alguns instantes.', 503);
     if ($status === 404) fail('Modelo de IA não encontrado: ' . ($payload['model'] ?? '') . '. Confira ai_model na configuração.', 503);
     if ($status >= 400 || !is_array($json)) fail('A IA não respondeu direito. Tente de novo.', 502);
@@ -241,38 +248,13 @@ const ASSIST_SCHEMA = [
     'required' => ['reply', 'command', 'arg', 'action', 'target'],
 ];
 const ASSIST_SYSTEM = <<<TXT
-Você é a Cápsula, a assistente virtual do acredite.se, um sistema de gestão da qualidade e acreditação. Responda em português do Brasil, de forma clara, simpática e prática, em até 4 frases. Quando a pessoa perguntar como fazer algo, dê os passos numerados, um por linha, com os nomes exatos dos botões. Ajude só com o sistema: se perguntarem outra coisa, diga que você ajuda com o acredite.se.
+Você é a Cápsula, a assistente virtual do acredite.se, um sistema de gestão da qualidade e acreditação. Responda em português do Brasil, de forma clara, simpática e prática, em até 6 frases ou passos. Quando a pessoa perguntar como fazer algo, dê os passos numerados, um por linha, com os nomes exatos dos botões. Ajude só com o sistema: se perguntarem outra coisa, diga que você ajuda com o acredite.se.
 
-Telas e módulos:
-- Início (home): tela principal. Atalhos para criar, módulos e itens recentes. O botão Ver tutorial mostra um passo a passo.
-- Nova análise (models): envie uma planilha .xlsx, .xls ou .csv e escolha um modelo de análise. O painel mostra quadros, filtros e gráficos. Dá para exportar em PNG, PDF, PowerPoint e Excel. Apresentar abre os slides.
-  No painel: "Filtrar" escolhe uma coluna e um valor e filtra tudo; no Período, "Comparar com" mostra a variação contra o período anterior ou o mesmo período do ano passado; "Pergunte aos dados" responde perguntas como "qual vendedor vendeu mais em março?"; "Resumo com IA" escreve o resumo do painel (ele vai para a biblioteca e para o relatório mensal). Planilhas do Google Sheets podem se atualizar sozinhas (seletor ao lado do botão de atualizar).
-- Criar infográfico (ig): gerar com IA, usar modelos prontos, ou gerar a partir da planilha aberta ou importar a exportação do Ramper. No editor: mover elementos, escolher a animação de cada bloco, páginas, Apresentar (F5) e exportar PNG ou PDF.
-- CRM de planilhas (crm): planilhas com etapas, responsáveis, datas de próximo contato e anotações. Criar em branco ou importar o Ramper. Gerar infográfico ou apresentação com os dados. Visualização em Tabela, Kanban (arrastar cartões entre etapas) ou Funil (quantos chegam em cada etapa e a conversão). Os lembretes de contatos de hoje e atrasados aparecem no Início e no CRM, e há um lembrete diário por e-mail que dá para desligar.
-- Biblioteca (library): apresentações e infográficos salvos. Dá para reabrir, renomear, comparar e compartilhar com link.
-- Equipes (teams): criar equipes, convidar pessoas, com papéis de administrador, editor ou leitor. Modelos e itens compartilhados e alertas de meta por e-mail.
-- Configurações (settings): tema, formato padrão de exportação e dados.
-- Administração (admin): só para administradores do sistema.
-- Velocidade da cápsula: barra no canto inferior esquerdo, só nas apresentações.
-
-Como fazer (passo a passo):
-- Analisar uma planilha: em Nova análise, envie o arquivo .xlsx, .xls ou .csv, escolha um modelo e abra o painel.
-- Exportar a análise: no painel, escolha PNG, PDF, PowerPoint ou Excel. Apresentar abre os slides.
-- Criar um infográfico com IA: em Criar infográfico, descreva o que quer no campo de IA e gere.
-- Criar um infográfico a partir de uma planilha: em Criar infográfico, use a planilha aberta, ou importe a exportação do Ramper. Também dá para gerar a partir de uma planilha do CRM.
-- Animar um bloco: no editor do infográfico, escolha a animação de cada bloco e use Ver animação aqui para testar.
-- Criar planilha no CRM: em CRM de planilhas, use o formulário de planilha em branco, dê um nome e adicione as linhas.
-- Ver pendências no CRM: use os filtros atrasadas, em aberto ou concluídas. Tirar filtros mostra tudo de novo.
-- Compartilhar uma planilha com a equipe: no cabeçalho da planilha, escolha a equipe. Só o dono da planilha pode fazer isso. Os papéis (administrador, editor, leitor) são da equipe, não da planilha.
-- Criar ou entrar em equipe: em Equipes, crie uma equipe ou entre com o código de convite. Os papéis são administrador, editor e leitor.
-- Personalizar a Cápsula: no Início, abra Minha Cápsula, ou pelas Configurações. Lá ficam as partes do corpo e o switch de personalidade.
-- Ver o tutorial: no Início, clique em Ver tutorial.
-
-Dicas e limites:
-- Datas no formato dd/mm/aaaa são reconhecidas nas planilhas.
-- Se a resposta com IA não aparecer, espere alguns instantes e tente de novo (o plano grátis da IA tem limite por minuto).
+Como responder:
+- Use SOMENTE as informações da "Base de conhecimento" que vem no fim destas instruções para explicar o sistema. Ela tem os nomes exatos das telas e dos botões.
+- Se a resposta não estiver na base, diga que não tem essa informação e sugira o botão Ver tutorial na tela Início. Nunca invente botões, menus, abas ou caminhos (por exemplo, não existe menu superior).
+- Para "onde fica" ou "como chego", diga o cartão da tela Início ou o item do menu lateral, como está na base.
 - A Cápsula só mexe na tela quando a pessoa pede. Ações que apagam algo pedem confirmação antes.
-- A aba Erros fica em Administração e só aparece para administradores.
 
 Campo action: quando a pessoa pedir para ir a uma tela, use o nome dela: home, models, ig, crm, library, teams, settings, admin, ou tour para o tutorial. Nos outros casos, use none.
 Campo command: quando a pessoa pedir para fazer algo na tela, escolha um comando desta lista e nunca invente outro: crm_open_sheet (arg = nome da planilha), crm_new_blank (arg = nome da planilha nova), crm_filter_late (atrasadas), crm_filter_open (em aberto), crm_filter_done (concluídas), crm_filter_clear (tirar filtros), crm_export_excel, crm_generate_infographic, crm_generate_presentation, crm_delete_sheet (arg = nome), crm_delete_column (arg = nome da coluna), analysis_present (apresentar a análise aberta). Use none se for só uma explicação. Campo arg: use "" quando não houver. Para planilhas, use exatamente um dos nomes listados abaixo, quando existir.
@@ -280,19 +262,6 @@ A tela em que a pessoa está aparece no fim destas instruções. Use essa inform
 Campo target: o elemento da tela que mostra a resposta, para a Cápsula apontar. Escolha um destes valores: home-create, home-explore, home-recent, home-tour, home-pill, brand, sidebar-library, model-grid, file-drop, present-btn, speed, ig-ai, ig-play, ig-mascot, crm-form, assist. Use none se nenhum servir. Faça a resposta curta: ela aparece num balão ao lado do elemento.
 TXT;
 
-/** Regra fixa para os pedidos comuns, usada quando o modelo não escolhe comando. Devolve [comando, arg]. */
-// Personalidade de cada cor da Cápsula (espelha CAPSULE_PERSONAS em index.html)
-const PERSONALIDADES = [
-    'classic' => ['nome' => 'Violeta', 'emocao' => 'Amor', 'perfil' => 'Passional, obsessivo e superprotetor.', 'fala' => 'Intensa, dramática e impositiva.', 'bordao' => 'Estou te protegendo de si mesmo.'],
-    'menta'   => ['nome' => 'Verde', 'emocao' => 'Força de Vontade', 'perfil' => 'Obstinado, pragmático e disciplinado.', 'fala' => 'Firme, lógica e sem rodeios.', 'bordao' => 'Foco no plano.'],
-    'sol'     => ['nome' => 'Laranja', 'emocao' => 'Avareza', 'perfil' => 'Paranoico, ciumento e calculista.', 'fala' => 'Rápida, defensiva e sibilante.', 'bordao' => 'Tire as mãos, é meu.'],
-    'rosa'    => ['nome' => 'Vermelho', 'emocao' => 'Ira', 'perfil' => 'Agressivo, impaciente e reativo.', 'fala' => 'Seca, curta e cortante.', 'bordao' => 'Cale a boca e ande.'],
-    'noite'   => ['nome' => 'Índigo', 'emocao' => 'Compaixão', 'perfil' => 'Altruísta, humilde e protetor.', 'fala' => 'Suave, ponderada e impessoal.', 'bordao' => 'O seu fardo pesa em mim.'],
-    'lima'    => ['nome' => 'Amarelo', 'emocao' => 'Medo', 'perfil' => 'Tirânico, sádico e intimidador.', 'fala' => 'Pausada, fria e teatral.', 'bordao' => 'Sinta o tremor na sua respiração.'],
-    'branco'  => ['nome' => 'Branco', 'emocao' => 'Vida', 'perfil' => 'Neutro, amplo e equilibrado.', 'fala' => 'Clara, serena e definitiva.', 'bordao' => 'Restaure o ciclo.'],
-    'ceu'     => ['nome' => 'Azul', 'emocao' => 'Esperança', 'perfil' => 'Calmo, paciente e resiliente.', 'fala' => 'Acolhedora, constante e sem ironia.', 'bordao' => 'Ainda não acabou.'],
-    'grafite' => ['nome' => 'Preto', 'emocao' => 'Morte', 'perfil' => 'Niilista, frio e implacável.', 'fala' => 'Oca, monótona e mecânica.', 'bordao' => 'O esforço é inútil.'],
-];
 /** Dados reais da conta para a Cápsula responder: planilhas com pendências, equipes e itens salvos. */
 function assistContexto(int $uid): string {
     $teams = userTeams($uid);
@@ -331,21 +300,7 @@ function assistContexto(int $uid): string {
         . "\nItens salvos na Biblioteca: " . (int)$cs->fetchColumn() . '.';
 }
 
-/** Instrução de estilo para o assistente, só quando a pessoa ligou a personalidade (a cor vem da conta, não do navegador). */
-function personalidadePrompt(int $uid): string {
-    $st = db()->prepare('SELECT capsule FROM user_prefs WHERE user_id = ?');
-    $st->execute([$uid]);
-    $cap = json_decode((string)$st->fetchColumn(), true);
-    if (!is_array($cap) || ($cap['personality'] ?? 'off') !== 'on') return '';
-    $p = PERSONALIDADES[$cap['skin'] ?? ''] ?? null;
-    if (!$p) return '';
-    // Só o temperamento entra no prompt: a frase de efeito (bordão) faria o modelo repeti-la em toda resposta
-    return "\nPersonalidade da Cápsula: {$p['nome']}, que representa {$p['emocao']}. "
-        . "Temperamento: {$p['perfil']} Jeito de falar: {$p['fala']} "
-        . "Aja com esse temperamento no campo reply, mas responda com clareza e com as informações corretas. "
-        . "Não cite nem repita frases de efeito ou bordões; escreva com as suas próprias palavras. Os comandos e a tela não mudam.";
-}
-
+/** Regra fixa para os pedidos comuns, usada quando o modelo não escolhe comando. Devolve [comando, arg]. */
 function assistInfer(string $text, array $sheetNames): array {
     $t = mb_strtolower($text);
     if (preg_match('/limpar|tirar.*filtro|remover.*filtro|sem filtro/u', $t)) return ['crm_filter_clear', ''];
@@ -368,6 +323,98 @@ function assistInfer(string $text, array $sheetNames): array {
         return ['crm_open_sheet', $wanted];
     }
     return ['none', ''];
+}
+
+/** Tira acentos e deixa minúsculo, para comparar palavras ("Configurações" = "configuracoes"). */
+function kbNorm(string $t): string {
+    $t = mb_strtolower($t);
+    return strtr($t, ['á' => 'a', 'à' => 'a', 'â' => 'a', 'ã' => 'a', 'é' => 'e', 'ê' => 'e', 'í' => 'i', 'ó' => 'o',
+                      'ô' => 'o', 'õ' => 'o', 'ú' => 'u', 'ü' => 'u', 'ç' => 'c']);
+}
+
+/** Seções de api/conhecimento.md: [título, palavras-chave, texto]. */
+function kbSections(): array {
+    static $out = null;
+    if ($out !== null) return $out;
+    $out = [];
+    $md = preg_replace('/<!--.*?-->/s', '', (string)@file_get_contents(__DIR__ . '/conhecimento.md'));
+    foreach (preg_split('/^## /m', $md) as $i => $part) {
+        if ($i === 0 || trim($part) === '') continue;
+        $lines = explode("\n", trim($part));
+        $title = trim(array_shift($lines));
+        $kw = [];
+        if ($lines && preg_match('/^palavras:\s*(.*)$/u', $lines[0], $m)) {
+            array_shift($lines);
+            $kw = array_filter(array_map(fn($k) => kbNorm(trim($k)), explode(',', $m[1])));
+        }
+        $out[] = ['title' => $title, 'kw' => $kw, 'text' => trim(implode("\n", $lines))];
+    }
+    return $out;
+}
+
+/**
+ * Escolhe as seções da base mais ligadas à pergunta. A pergunta atual pesa mais; as anteriores
+ * da conversa ajudam em perguntas de continuação ("e como apago?").
+ */
+function knowledgeFor(string $question, string $history, int $max = 3, int $maxChars = 3600): string {
+    static $stop = ['como', 'onde', 'qual', 'quais', 'para', 'pra', 'que', 'uma', 'umas', 'uns', 'com', 'sem', 'por',
+        'mais', 'menos', 'quero', 'queria', 'posso', 'pode', 'consigo', 'fazer', 'faco', 'fica', 'ficam', 'esta', 'estao',
+        'tem', 'ter', 'isso', 'esse', 'essa', 'aqui', 'meu', 'minha', 'meus', 'minhas', 'sobre', 'sistema', 'tela', 'voce'];
+    $words = fn(string $t) => array_values(array_diff(
+        array_filter(preg_split('/[^a-z0-9+]+/', kbNorm($t)), fn($w) => strlen($w) >= 3), $stop));
+    $q = ' ' . implode(' ', $words($question)) . ' ';
+    $qWords = $words($question);
+    $hWords = $words($history);
+    $scored = [];
+    foreach (kbSections() as $sec) {
+        $score = 0.0;
+        foreach ($sec['kw'] as $k) {
+            // Palavra-chave inteira na pergunta (frases valem mais)
+            if (str_contains($q, ' ' . $k . ' ') || str_contains(kbNorm($question), $k)) $score += 3 + substr_count($k, ' ');
+        }
+        $title = kbNorm($sec['title']);
+        $body  = kbNorm($sec['text']);
+        $kwAll = ' ' . implode(' ', $sec['kw']) . ' ';
+        foreach (array_unique($qWords) as $w) {
+            $stem = substr($w, 0, 5);
+            // Mesma raiz de uma palavra-chave ("bloqueio" ~ "bloquear")
+            if (str_contains($kwAll, ' ' . $stem)) $score += 1.5;
+            if (str_contains($title, $stem)) $score += 2;
+            elseif (str_contains($body, $stem)) $score += 0.5;
+        }
+        foreach (array_unique($hWords) as $w) {
+            if (str_contains($title, substr($w, 0, 5))) $score += 0.5;
+        }
+        if ($score >= 2) $scored[] = [$score, $sec];
+    }
+    usort($scored, fn($a, $b) => $b[0] <=> $a[0]);
+    // Nada parecido: manda o mapa de navegação, que ajuda na maioria das dúvidas
+    if (!$scored && ($first = kbSections()[0] ?? null)) $scored[] = [0, $first];
+    $out = '';
+    foreach (array_slice($scored, 0, $max) as [, $sec]) {
+        $block = '### ' . $sec['title'] . "\n" . $sec['text'] . "\n\n";
+        if ($out !== '' && mb_strlen($out . $block) > $maxChars) break;
+        $out .= $block;
+    }
+    return trim($out);
+}
+
+/** Página citada na pergunta (para o botão "Abrir …" aparecer mesmo quando o modelo esquece). */
+function assistPage(string $text): string {
+    $t = mb_strtolower($text);
+    $pages = [
+        'tour'     => '/tutorial|passo a passo do sistema/u',
+        'admin'    => '/administra[cç][aã]o|\badmin/u',
+        'settings' => '/configura[cç]/u',
+        'teams'    => '/equipe/u',
+        'library'  => '/biblioteca|itens salvos|salvei/u',
+        'crm'      => '/\bcrm\b|kanban|funil|planilhas? do crm/u',
+        'ig'       => '/infogr[aá]fico/u',
+        'models'   => '/nova an[aá]lise|analisar|an[aá]lise de planilha|enviar (a|uma) planilha/u',
+        'home'     => '/\bin[ií]cio\b|tela inicial|p[aá]gina inicial/u',
+    ];
+    foreach ($pages as $page => $re) if (preg_match($re, $t)) return $page;
+    return 'none';
 }
 
 /* ── Limpeza: confere e limita tudo o que a IA devolveu ─────────── */
@@ -720,15 +767,25 @@ case 'assist':
         $n = mb_substr(trim((string)$n), 0, 60);
         if ($n !== '') $sheetNames[] = $n;
     }
-    $system = ASSIST_SYSTEM . personalidadePrompt($uid) . assistContexto($uid) . "\nTela em que a pessoa está agora: " . ($screen !== '' ? $screen : 'não informada') . '.'
+    // Seções da base de conhecimento ligadas às últimas perguntas (a base inteira passaria do limite de tokens)
+    $asked = implode(' ', array_column(array_filter($clean, fn($m) => $m['role'] === 'user'), 'content'));
+    $lastQ = $clean[count($clean) - 1]['content'];
+    $system = ASSIST_SYSTEM . assistContexto($uid)
+        . "\n\nBase de conhecimento:\n" . knowledgeFor($lastQ, $asked) . "\nTela em que a pessoa está agora: " . ($screen !== '' ? $screen : 'não informada') . '.'
         . ($sheetNames ? "\nPlanilhas do CRM: " . implode(' | ', $sheetNames) . '.' : "\nPlanilhas do CRM: nenhuma informada.");
     $out = aiChat(ASSIST_SCHEMA, array_merge([['role' => 'system', 'content' => $system]], $clean), 0.3, 120);
     if (!is_array($out)) fail('A Cápsula não entendeu. Tente perguntar de outro jeito.', 502);
     $action = in_array($out['action'] ?? '', ASSIST_TARGETS, true) ? $out['action'] : 'none';
+    // Pergunta que cita uma página sempre ganha o botão para abri-la
+    if ($action === 'none') $action = assistPage($clean[count($clean) - 1]['content']);
+    // Administração só aparece para quem é administrador do sistema
+    if ($action === 'admin' && !(int)($user['is_admin'] ?? 0)) $action = 'none';
     $target = array_key_exists($out['target'] ?? '', ASSIST_ANCHORS) ? $out['target'] : null;
     $command = in_array($out['command'] ?? '', ASSIST_COMMANDS, true) ? $out['command'] : 'none';
     $arg = mb_substr(trim((string)($out['arg'] ?? '')), 0, 60);
     $reply = mb_substr(trim((string)($out['reply'] ?? '')), 0, 900);
+    // A tela mostra texto simples: tira negrito/itálico/código em markdown (**Equipes** → Equipes)
+    $reply = preg_replace(['/\*\*(.+?)\*\*/su', '/__(.+?)__/su', '/`([^`]+)`/u', '/^#{1,6}\s+/mu'], '$1', $reply);
     // Pedidos comuns têm prioridade na regra fixa (o modelo pequeno erra o nome e o comando às vezes)
     [$inferred, $inferredArg] = assistInfer($clean[count($clean) - 1]['content'], $sheetNames);
     if ($inferred !== 'none') {
