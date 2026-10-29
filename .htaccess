@@ -1,0 +1,24 @@
+Options -Indexes
+DirectoryIndex index.html
+
+# Bloqueia arquivos sensíveis
+<FilesMatch "(\.(sql|sqlite|md|log|ps1|yml|example)|^\.env|^\.git.*|^\.dockerignore|^Dockerfile)$">
+  Require all denied
+</FilesMatch>
+
+# Força HTTPS (descomente depois que o certificado SSL estiver ativo)
+# RewriteEngine On
+# RewriteCond %{HTTPS} off
+# RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# Permite enviar infográficos grandes
+<IfModule mod_php.c>
+  php_value post_max_size 16M
+  php_value upload_max_filesize 16M
+</IfModule>

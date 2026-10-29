@@ -1,0 +1,8 @@
+{
+  // Go Live (Live Server) não roda PHP: repassa /api para o servidor de teste (iniciar-teste.ps1, porta 8080)
+  "liveServer.settings.proxy": {
+    "enable": true,
+    "baseUri": "/api",
+    "proxyUri": "http://127.0.0.1:8080/api"
+  }
+}

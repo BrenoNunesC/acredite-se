@@ -1,0 +1,43 @@
+# Sobe o Acredite.se + MariaDB com um comando:  docker compose up -d
+# Depois abra http://localhost:8080
+# Para a IA funcionar, coloque a chave do Groq em AI_KEY no arquivo .env (veja .env.example).
+services:
+  app:
+    build: .
+    ports:
+      - "${APP_PORT:-8080}:80"
+    environment:
+      ACREDITE_DB_HOST: db
+      ACREDITE_DB_NAME: ${DB_NAME:-acredite}
+      ACREDITE_DB_USER: ${DB_USER:-acredite}
+      ACREDITE_DB_PASS: ${DB_PASS:-acredite}
+      ACREDITE_DEBUG: ${DEBUG:-true}
+      ACREDITE_AI_URL: ${AI_URL:-https://api.groq.com/openai/v1}
+      ACREDITE_AI_KEY: ${AI_KEY:-}
+      ACREDITE_AI_MODEL: ${AI_MODEL:-llama-3.3-70b-versatile}
+    volumes:
+      - storage:/var/www/html/storage
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mariadb:11
+    environment:
+      MARIADB_DATABASE: ${DB_NAME:-acredite}
+      MARIADB_USER: ${DB_USER:-acredite}
+      MARIADB_PASSWORD: ${DB_PASS:-acredite}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASS:-root}
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql:/var/lib/mysql
+    ports:
+      - "${DB_PORT:-3307}:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      retries: 20
+
+volumes:
+  mysql:
+  storage:

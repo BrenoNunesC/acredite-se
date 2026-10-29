@@ -1,0 +1,14 @@
+# Configuração local com senhas e chaves
+api/config.local.php
+.env
+
+# Dados gerados pelo sistema (imagens, e-mails de teste, registro de erros)
+storage/*
+!storage/.htaccess
+*.sqlite
+*.log
+
+# Sistema / editores
+.DS_Store
+Thumbs.db
+.idea/

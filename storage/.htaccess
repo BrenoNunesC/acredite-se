@@ -1,0 +1,3 @@
+# Nada nesta pasta pode ser acessado direto pelo navegador.
+# As imagens são entregues por api/library.php, que confere o dono.
+Require all denied
